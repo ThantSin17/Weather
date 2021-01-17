@@ -1,13 +1,17 @@
 package com.stone.weather
 
 import android.Manifest
+import android.annotation.SuppressLint
+import android.content.Context
 import android.content.pm.PackageManager
+import android.location.LocationManager
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+
 
 
 class MainActivity : AppCompatActivity() {
@@ -32,7 +36,8 @@ class MainActivity : AppCompatActivity() {
                 request_code
             )
         } else {
-            Toast.makeText(this, "success", Toast.LENGTH_LONG).show()
+            getLocation()
+
         }
     }
 
@@ -43,13 +48,25 @@ class MainActivity : AppCompatActivity() {
     ) {
         if (requestCode == request_code) {
             if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                Toast.makeText(this, "success", Toast.LENGTH_LONG).show()
+
                 Log.d("Mainactivity.request", "success")
+                getLocation()
             } else if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_DENIED) {
                 Toast.makeText(this, "Denied", Toast.LENGTH_LONG).show()
             }
         }
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+    }
+
+    @SuppressLint("MissingPermission")
+    fun getLocation(){
+        val locationManager=getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val location =locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+        if (location != null) {
+            Log.d("Mainactivity.oncreate",location.latitude.toString())
+        }
+        Toast.makeText(this, location?.latitude.toString(), Toast.LENGTH_LONG).show()
+
     }
 
 
