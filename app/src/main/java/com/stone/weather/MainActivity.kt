@@ -3,7 +3,6 @@ package com.stone.weather
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.location.LocationManager
 import android.net.Uri
@@ -19,6 +18,7 @@ import com.karumi.dexter.listener.PermissionDeniedResponse
 import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
+import com.squareup.moshi.Moshi
 
 
 class MainActivity : AppCompatActivity() {
@@ -31,7 +31,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun checkPermission() {
-        Dexter.withActivity(this@MainActivity)
+        Dexter.withContext(this@MainActivity)
             .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
             .withListener(object : PermissionListener {
                 override fun onPermissionGranted(p0: PermissionGrantedResponse?) {
@@ -80,11 +80,18 @@ class MainActivity : AppCompatActivity() {
     fun getLocation(){
         val locationManager=getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val location =locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-        if (location != null) {
-            Log.d("Mainactivity.oncreate", location.latitude.toString())
-        }
+
+        Log.d("Mainactivity.oncreate", location?.latitude.toString())
+
         Toast.makeText(this, location?.latitude.toString(), Toast.LENGTH_LONG).show()
 
+        val response="{\"coord\":{\"lon\":30,\"lat\":20},\"weather\":[{\"id\":800,\"main\":\"Clear\",\"description\":\"clear sky\",\"icon\":\"01n\"}],\"base\":\"stations\",\"main\":{\"temp\":288.91,\"feels_like\":281.95,\"temp_min\":288.91,\"temp_max\":288.91,\"pressure\":1021,\"humidity\":33,\"sea_level\":1021,\"grnd_level\":986},\"visibility\":10000,\"wind\":{\"speed\":7.01,\"deg\":7},\"clouds\":{\"all\":0},\"dt\":1611162344,\"sys\":{\"country\":\"SD\",\"sunrise\":1611117459,\"sunset\":1611157442},\"timezone\":7200,\"id\":372801,\"name\":\"Karmah an Nuzul\",\"cod\":200}"
+
+        val moshi=Moshi.Builder().build()
+        val adapter=moshi.adapter(OpenWeatherMapResponse::class.java)
+
+        val responseWeather=adapter.fromJson(response)
+        Log.i("MainActivity", responseWeather.toString())
     }
 
 
