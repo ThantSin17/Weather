@@ -3,21 +3,26 @@ package com.stone.weather
 import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
+import android.content.DialogInterface
+import android.content.Intent
 import android.location.LocationManager
-import androidx.appcompat.app.AppCompatActivity
+import android.net.Uri
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-
+import androidx.appcompat.app.AppCompatActivity
+import com.karumi.dexter.Dexter
+import com.karumi.dexter.DexterBuilder.*
+import com.karumi.dexter.PermissionToken
+import com.karumi.dexter.listener.PermissionDeniedResponse
+import com.karumi.dexter.listener.PermissionGrantedResponse
+import com.karumi.dexter.listener.PermissionRequest
+import com.karumi.dexter.listener.single.PermissionListener
 
 
 class MainActivity : AppCompatActivity() {
-    companion object {
-        private const val request_code = 100
-    }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -25,37 +30,50 @@ class MainActivity : AppCompatActivity() {
         checkPermission()
     }
 
-    fun checkPermission() {
-        if (ContextCompat.checkSelfPermission(
-                this, Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                request_code
-            )
-        } else {
-            getLocation()
+    private fun checkPermission() {
+        Dexter.withActivity(this@MainActivity)
+            .withPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+            .withListener(object : PermissionListener {
+                override fun onPermissionGranted(p0: PermissionGrantedResponse?) {
+                    Log.i("MainActivity.onCreate", "permissionGranted")
+                    getLocation()
+                }
 
-        }
+                override fun onPermissionRationaleShouldBeShown(
+                    p0: PermissionRequest?,
+                    p1: PermissionToken?
+                ) {
+                    Log.i("MainActivity.onCreate", "PermissionShow")
+                    p1?.continuePermissionRequest()
+                }
+
+                override fun onPermissionDenied(p0: PermissionDeniedResponse?) {
+                    Log.i("MainActivity.onCreate", "PermissionDenied")
+                    if (p0?.isPermanentlyDenied == true)
+                        showSettingsDialog()
+                }
+
+            })
+            .check()
     }
 
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        if (requestCode == request_code) {
-            if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-
-                Log.d("Mainactivity.request", "success")
-                getLocation()
-            } else if (grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                Toast.makeText(this, "Denied", Toast.LENGTH_LONG).show()
-            }
+    private fun showSettingsDialog() {
+        val builder: android.app.AlertDialog.Builder = android.app.AlertDialog.Builder(this@MainActivity)
+        builder.setTitle("Need Permissions")
+        builder.setMessage("This app needs permission to use this feature. You can grant them in app settings.")
+        builder.setPositiveButton("GOTO SETTINGS"
+        ) { dialog, which ->
+            dialog.cancel()
+            openSettings()
         }
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        builder.setNegativeButton("Cancel") { dialog, which -> dialog.cancel() }
+        builder.show()
+    }
+    private fun openSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+        val uri: Uri = Uri.fromParts("package", packageName, null)
+        intent.data = uri
+        startActivityForResult(intent, 101)
     }
 
     @SuppressLint("MissingPermission")
@@ -63,7 +81,7 @@ class MainActivity : AppCompatActivity() {
         val locationManager=getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val location =locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
         if (location != null) {
-            Log.d("Mainactivity.oncreate",location.latitude.toString())
+            Log.d("Mainactivity.oncreate", location.latitude.toString())
         }
         Toast.makeText(this, location?.latitude.toString(), Toast.LENGTH_LONG).show()
 
