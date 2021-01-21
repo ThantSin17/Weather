@@ -21,15 +21,21 @@ import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
 import com.squareup.moshi.Moshi
 import okhttp3.*
+import java.io.BufferedReader
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
 
 
 class MainActivity : AppCompatActivity() {
 
 
-    companion object{
-        private const val API_KEY="3ab59769510d39f9b28e9627ae9826cd"
+    companion object {
+        private const val API_KEY = "3ab59769510d39f9b28e9627ae9826cd"
     }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -64,10 +70,12 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showSettingsDialog() {
-        val builder: android.app.AlertDialog.Builder = android.app.AlertDialog.Builder(this@MainActivity)
+        val builder: android.app.AlertDialog.Builder =
+            android.app.AlertDialog.Builder(this@MainActivity)
         builder.setTitle("Need Permissions")
         builder.setMessage("This app needs permission to use this feature. You can grant them in app settings.")
-        builder.setPositiveButton("GOTO SETTINGS"
+        builder.setPositiveButton(
+            "GOTO SETTINGS"
         ) { dialog, which ->
             dialog.cancel()
             openSettings()
@@ -75,6 +83,7 @@ class MainActivity : AppCompatActivity() {
         builder.setNegativeButton("Cancel") { dialog, which -> dialog.cancel() }
         builder.show()
     }
+
     private fun openSettings() {
         val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
         val uri: Uri = Uri.fromParts("package", packageName, null)
@@ -83,9 +92,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     @SuppressLint("MissingPermission")
-    fun getLocation(){
-        val locationManager=getSystemService(Context.LOCATION_SERVICE) as LocationManager
-        val location =locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+    fun getLocation() {
+        val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
 
         Log.d("Mainactivity.oncreate", location?.latitude.toString())
 
@@ -96,52 +105,53 @@ class MainActivity : AppCompatActivity() {
             longitude = location?.longitude.toString()
         )
     }
-    private fun executeNetworkCall(latitude:String, longitude:String){
 
-        val httpUrl= HttpUrl.Builder()
-            .scheme("http")
-            .host("api.openweathermap.org")
-            .addPathSegment("data")
-            .addPathSegment("2.5")
-            .addPathSegment("weather")
-            .addQueryParameter("lat",latitude)
-            .addQueryParameter("lon",longitude)
-            .addQueryParameter("appid", API_KEY)
-            .build()
+    private fun executeNetworkCall(latitude: String, longitude: String) {
 
-        val client= OkHttpClient()
-        val request= Request.Builder()
-            .url(httpUrl)
-            .build()
+        val executor = Executors.newSingleThreadExecutor()
+        executor.execute {
+            var connection: HttpURLConnection? = null
+            var weatherMapResponse: OpenWeatherMapResponse? = null
 
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                Log.i("Response", e.printStackTrace().toString())
-            }
+            try {
+                val url =
+                    URL("http://api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&appid=$API_KEY")
 
-            override fun onResponse(call: Call, response: Response) {
-                if (response.isSuccessful){
-                    response.body?.let {
-                        val json= it.string()
-                        try {
-                            val moshi=Moshi.Builder().build()
-                            val adapter=moshi.adapter(OpenWeatherMapResponse::class.java)
+                ///start connection
+                connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
 
-                            val responseWeather=adapter.fromJson(json)
-                            Log.i("Response.S",responseWeather.toString())
-                        }catch (e:Exception){
-                            Log.i("Response.E",e.message.toString())
-                        }
+                //Execute connection
+                connection.connect()
 
+                //get response
+                val responseCode = connection.responseCode
 
-
+                //parse json to data
+                var responseBody: String? = null
+                connection.inputStream.use {
+                    it.bufferedReader().use { bufferedReader ->
+                        responseBody = bufferedReader.readText()
                     }
-                }else{
-                    Log.i("Response","fail")
+                }
+
+                //check successful 200==ok
+                if (responseCode == 200) {
+                    val moshi = Moshi.Builder().build()
+                    weatherMapResponse = moshi.adapter(OpenWeatherMapResponse::class.java).fromJson(responseBody)
 
                 }
+            }catch (e:Exception){
+                Log.i("Response.E", e.message.toString())
+            }finally {
+                connection?.disconnect()
             }
-        })
+
+            if (weatherMapResponse!=null){
+                Log.i("Response.S", weatherMapResponse.toString())
+            }
+
+        }
 
     }
 
