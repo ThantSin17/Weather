@@ -8,6 +8,7 @@ import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.util.JsonReader
 import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -19,11 +20,16 @@ import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
 import com.squareup.moshi.Moshi
+import okhttp3.*
+import java.io.IOException
 
 
 class MainActivity : AppCompatActivity() {
 
 
+    companion object{
+        private const val API_KEY="3ab59769510d39f9b28e9627ae9826cd"
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -85,14 +91,58 @@ class MainActivity : AppCompatActivity() {
 
         Toast.makeText(this, location?.latitude.toString(), Toast.LENGTH_LONG).show()
 
-        val response="{\"coord\":{\"lon\":30,\"lat\":20},\"weather\":[{\"id\":800,\"main\":\"Clear\",\"description\":\"clear sky\",\"icon\":\"01n\"}],\"base\":\"stations\",\"main\":{\"temp\":288.91,\"feels_like\":281.95,\"temp_min\":288.91,\"temp_max\":288.91,\"pressure\":1021,\"humidity\":33,\"sea_level\":1021,\"grnd_level\":986},\"visibility\":10000,\"wind\":{\"speed\":7.01,\"deg\":7},\"clouds\":{\"all\":0},\"dt\":1611162344,\"sys\":{\"country\":\"SD\",\"sunrise\":1611117459,\"sunset\":1611157442},\"timezone\":7200,\"id\":372801,\"name\":\"Karmah an Nuzul\",\"cod\":200}"
-
-        val moshi=Moshi.Builder().build()
-        val adapter=moshi.adapter(OpenWeatherMapResponse::class.java)
-
-        val responseWeather=adapter.fromJson(response)
-        Log.i("MainActivity", responseWeather.toString())
+        executeNetworkCall(
+            latitude = location?.latitude.toString(),
+            longitude = location?.longitude.toString()
+        )
     }
+    private fun executeNetworkCall(latitude:String, longitude:String){
 
+        val httpUrl= HttpUrl.Builder()
+            .scheme("http")
+            .host("api.openweathermap.org")
+            .addPathSegment("data")
+            .addPathSegment("2.5")
+            .addPathSegment("weather")
+            .addQueryParameter("lat",latitude)
+            .addQueryParameter("lon",longitude)
+            .addQueryParameter("appid", API_KEY)
+            .build()
+
+        val client= OkHttpClient()
+        val request= Request.Builder()
+            .url(httpUrl)
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onFailure(call: Call, e: IOException) {
+                Log.i("Response", e.printStackTrace().toString())
+            }
+
+            override fun onResponse(call: Call, response: Response) {
+                if (response.isSuccessful){
+                    response.body?.let {
+                        val json= it.string()
+                        try {
+                            val moshi=Moshi.Builder().build()
+                            val adapter=moshi.adapter(OpenWeatherMapResponse::class.java)
+
+                            val responseWeather=adapter.fromJson(json)
+                            Log.i("Response.S",responseWeather.toString())
+                        }catch (e:Exception){
+                            Log.i("Response.E",e.message.toString())
+                        }
+
+
+
+                    }
+                }else{
+                    Log.i("Response","fail")
+
+                }
+            }
+        })
+
+    }
 
 }
