@@ -1,3 +1,5 @@
+@file:Suppress("NAME_SHADOWING")
+
 package com.stone.weather
 
 import android.Manifest
@@ -8,14 +10,11 @@ import android.location.LocationManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
-import android.util.JsonReader
 import android.util.Log
 import android.view.View
-import android.widget.ImageView
-import android.widget.ProgressBar
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import com.bumptech.glide.Glide
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.DexterBuilder.*
 import com.karumi.dexter.PermissionToken
@@ -23,33 +22,21 @@ import com.karumi.dexter.listener.PermissionDeniedResponse
 import com.karumi.dexter.listener.PermissionGrantedResponse
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.single.PermissionListener
-import com.squareup.moshi.Moshi
 import okhttp3.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
-import retrofit2.Retrofit
-import retrofit2.converter.moshi.MoshiConverterFactory
-import java.io.BufferedReader
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.concurrent.Executor
-import java.util.concurrent.Executors
 
 
 class MainActivity : AppCompatActivity() {
 
 
-    companion object {
-        private const val API_KEY = "3ab59769510d39f9b28e9627ae9826cd"
-    }
 
     private val progressBar by lazy {
         findViewById<ProgressBar>(R.id.progress_bar)
     }
     private val txtCity by lazy {
-        findViewById<TextView>(R.id.txt_city)
+        findViewById<EditText>(R.id.txt_city)
     }
     private val txtTemp by lazy {
         findViewById<TextView>(R.id.txt_temp)
@@ -57,12 +44,22 @@ class MainActivity : AppCompatActivity() {
     private val imgView by lazy {
         findViewById<ImageView>(R.id.imgView)
     }
-
+    private val btnSearch by lazy{
+        findViewById<Button>(R.id.btnSearch)
+    }
+    private val retrofit by lazy {
+        RetrofitApiFactory().instance()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
         checkPermission()
+
+        btnSearch.setOnClickListener {
+            val cityName=txtCity.text.toString()
+            executeNetworkCall(cityName)
+        }
 
     }
 
@@ -117,7 +114,7 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     fun getLocation() {
-        showLoading()
+
 
         val locationManager = getSystemService(Context.LOCATION_SERVICE) as LocationManager
         val location = locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
@@ -138,29 +135,28 @@ class MainActivity : AppCompatActivity() {
         txtCity.visibility=View.GONE
         txtTemp.visibility=View.GONE
         imgView.visibility=View.GONE
+        btnSearch.visibility=View.GONE
 
     }
     private fun showUI(city:String,temp:String,weatherIcon:String){
         progressBar.visibility= View.GONE
-        txtCity.text=city
-        txtTemp.text=temp
+        txtCity.setText(city)
+        txtTemp.text="$temp ℃"
+        Glide.with(this).load(weatherIcon).into(imgView)
 
+        btnSearch.visibility=View.VISIBLE
         txtCity.visibility=View.VISIBLE
         txtTemp.visibility=View.VISIBLE
         imgView.visibility=View.VISIBLE
     }
 
     private fun executeNetworkCall(latitude: String, longitude: String) {
-        val retrofit=Retrofit.Builder()
-            .baseUrl("https://api.openweathermap.org/data/2.5/")
-            .addConverterFactory(MoshiConverterFactory.create())
-            .client(OkHttpClient())
-            .build()
+        showLoading()
 
         val openWeatherMapApi=retrofit.create(OpenWeatherMapApi::class.java)
 
         openWeatherMapApi.getCoordinate(
-            latitude,longitude, API_KEY
+            latitude,longitude
         ).enqueue(object :Callback<OpenWeatherMapResponse>{
             override fun onResponse(
                 call: Call<OpenWeatherMapResponse>,
@@ -168,8 +164,38 @@ class MainActivity : AppCompatActivity() {
             ) {
                 if (response.isSuccessful){
                     response.body()?.let { response->
+                        val iconUrl=response.weather.getOrNull(0)?.icon ?: ""
+                        val fullUrl="http://openweathermap.org/img/wn/$iconUrl@2x.png"
+                        showUI(response.name,response.main.temp,fullUrl)
+                        Log.i("response",response.toString())
+                    }
+                }
+            }
 
-                        showUI(response.name,response.main.temp,response.weather.getOrNull(0)?.icon ?: "")
+            override fun onFailure(call: Call<OpenWeatherMapResponse>, t: Throwable) {
+                Log.i("response",t.message.toString())
+            }
+        })
+
+
+    }
+    private fun executeNetworkCall(cityName:String) {
+        showLoading()
+
+        val openWeatherMapApi=retrofit.create(OpenWeatherMapApi::class.java)
+
+        openWeatherMapApi.getCityByName(
+            cityName
+        ).enqueue(object :Callback<OpenWeatherMapResponse>{
+            override fun onResponse(
+                call: Call<OpenWeatherMapResponse>,
+                response: Response<OpenWeatherMapResponse>
+            ) {
+                if (response.isSuccessful){
+                    response.body()?.let { response->
+                        val iconUrl=response.weather.getOrNull(0)?.icon ?: ""
+                        val fullUrl="http://openweathermap.org/img/wn/$iconUrl@2x.png"
+                        showUI(response.name,response.main.temp,fullUrl)
                         Log.i("response",response.toString())
                     }
                 }

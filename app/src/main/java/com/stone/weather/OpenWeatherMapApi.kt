@@ -10,8 +10,15 @@ interface OpenWeatherMapApi {
     @GET("weather")
     fun getCoordinate(
         @Query("lat") latitude: String,
-        @Query("lon") longitude: String,
-        @Query("appid") appId: String
+        @Query("lon") longitude: String
+
     ): Call<OpenWeatherMapResponse>
+
+    @GET("weather")
+    fun getCityByName(
+        @Query("q") cityName: String
+
+    ): Call<OpenWeatherMapResponse>
+
 
 }
