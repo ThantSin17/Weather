@@ -14,6 +14,7 @@ import android.util.Log
 import android.view.View
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.LinearLayoutCompat
 import com.bumptech.glide.Glide
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.DexterBuilder.*
@@ -47,6 +48,12 @@ class MainActivity : AppCompatActivity() {
     private val btnSearch by lazy{
         findViewById<Button>(R.id.btnSearch)
     }
+    private val btnReset by lazy {
+        findViewById<Button>(R.id.btn_reset)
+    }
+    private val errorLayout by lazy {
+        findViewById<LinearLayoutCompat>(R.id.errorLayout)
+    }
     private val retrofit by lazy {
         RetrofitApiFactory().instance()
     }
@@ -59,6 +66,9 @@ class MainActivity : AppCompatActivity() {
         btnSearch.setOnClickListener {
             val cityName=txtCity.text.toString()
             executeNetworkCall(cityName)
+        }
+        btnReset.setOnClickListener {
+            checkPermission()
         }
 
     }
@@ -136,10 +146,21 @@ class MainActivity : AppCompatActivity() {
         txtTemp.visibility=View.GONE
         imgView.visibility=View.GONE
         btnSearch.visibility=View.GONE
+        errorLayout.visibility=View.GONE
 
+    }
+    private fun showError(){
+        progressBar.visibility= View.GONE
+        txtCity.visibility=View.GONE
+        txtTemp.visibility=View.GONE
+        imgView.visibility=View.GONE
+        btnSearch.visibility=View.GONE
+
+        errorLayout.visibility=View.VISIBLE
     }
     private fun showUI(city:String,temp:String,weatherIcon:String){
         progressBar.visibility= View.GONE
+        errorLayout.visibility=View.GONE
         txtCity.setText(city)
         txtTemp.text="$temp ℃"
         Glide.with(this).load(weatherIcon).into(imgView)
@@ -169,11 +190,14 @@ class MainActivity : AppCompatActivity() {
                         showUI(response.name,response.main.temp,fullUrl)
                         Log.i("response",response.toString())
                     }
+                }else{
+                    showError()
                 }
             }
 
             override fun onFailure(call: Call<OpenWeatherMapResponse>, t: Throwable) {
                 Log.i("response",t.message.toString())
+                showError()
             }
         })
 
@@ -198,11 +222,14 @@ class MainActivity : AppCompatActivity() {
                         showUI(response.name,response.main.temp,fullUrl)
                         Log.i("response",response.toString())
                     }
+                }else{
+                    showError()
                 }
             }
 
             override fun onFailure(call: Call<OpenWeatherMapResponse>, t: Throwable) {
                 Log.i("response",t.message.toString())
+                showError()
             }
         })
 
